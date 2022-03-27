@@ -1,0 +1,19 @@
+{
+  "name": "wasm-game-of-life",
+  "version": "0.0.0",
+  "prettier": {
+    "printWidth": 140,
+    "endOfLine": "lf",
+    "singleQuote": true,
+    "trailingComma": "all"
+  },
+  "scripts": {
+    "clean": "node -e \"['pkg','target','docs/index.js','docs/wasm_game_of_life_bg.wasm'].forEach(dir=>require('fs').rmSync(dir,{recursive:true,force:true}))\"",
+    "build": "node build.mjs",
+    "start": "node build.mjs --serve"
+  },
+  "devDependencies": {
+    "esbuild": "^0.14.28",
+    "esbuild-plugin-wasm": "^1.0.0"
+  }
+}
