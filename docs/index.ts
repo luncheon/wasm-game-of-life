@@ -9,12 +9,12 @@ controlPanel.style.left = '16px';
 controlPanel.style.padding = '4px';
 controlPanel.style.background = 'rgba(255,255,255,.8)';
 
-const CELL_SIZE = 5;
+const CELL_SIZE = 3;
 const GRID_COLOR = [204, 204, 204] as const;
 const DEAD_COLOR = [255, 255, 255] as const;
 const ALIVE_COLOR = [0, 0, 0] as const;
 
-const universe = new Universe(600, 300);
+const universe = new Universe(800, 800);
 universe.random();
 
 const rgbFormat = ([r, g, b]: readonly [number, number, number]) => `rgb(${r},${g},${b})`;
@@ -51,19 +51,13 @@ const renderLoop = (callback: () => void) => {
   return { cancel: () => animationRequestId !== undefined && cancelAnimationFrame(animationRequestId) };
 };
 
-const forEachCells = (callback: (row: number, column: number, isAlive: boolean) => void) => {
-  const cells = new Uint8Array(memory.buffer, universe.cells_ptr, Math.ceil((universe.row_count * universe.column_count) / 8));
-  let byteIndex = 0;
-  let bitMask = 1;
+const forEachCells = (callback: (row: number, column: number, isAlive: unknown) => void) => {
+  const cells = new Uint8Array(memory.buffer, universe.cells_ptr, universe.row_count * universe.column_count);
+  let index = 0;
   for (let row = 0; row < universe.row_count; row++) {
     for (let column = 0; column < universe.column_count; column++) {
-      callback(row, column, (cells[byteIndex]! & bitMask) === bitMask);
-      if (bitMask === 1 << 7) {
-        bitMask = 1;
-        byteIndex++;
-      } else {
-        bitMask <<= 1;
-      }
+      callback(row, column, cells[index]);
+      index++;
     }
   }
 };

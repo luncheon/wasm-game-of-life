@@ -1,5 +1,4 @@
 use super::js;
-use bitvec::prelude::BitVec;
 
 fn random_bool() -> bool {
     static mut X: Option<u32> = None;
@@ -14,7 +13,7 @@ fn random_bool() -> bool {
 }
 
 pub struct BitTable {
-    bits: BitVec,
+    bits: Vec<bool>, // bitvec is much slower
     row_count: u32,
     column_count: u32,
 }
@@ -24,7 +23,7 @@ impl BitTable {
         Self {
             row_count,
             column_count,
-            bits: BitVec::repeat(false, (row_count * column_count) as usize),
+            bits: vec![false; (row_count * column_count) as usize],
         }
     }
 
@@ -58,11 +57,10 @@ impl BitTable {
 
     pub fn set(&mut self, row: u32, column: u32, value: bool) {
         let index = self.get_index(row, column);
-        self.bits.set(index, value)
+        self.bits[index] = value;
     }
 
     pub fn as_ptr(&self) -> *const u8 {
-        let ptr = self.bits.as_raw_slice().as_ptr();
-        ptr as *const u8
+        self.bits.as_ptr() as *const u8
     }
 }
