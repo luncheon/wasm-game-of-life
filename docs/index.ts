@@ -2,26 +2,30 @@ import { Universe, UniverseCanvasDrawer } from '../pkg/wasm_game_of_life';
 import { memory } from '../pkg/wasm_game_of_life_bg.wasm';
 
 const canvas = document.body.appendChild(document.createElement('canvas'));
+const controlPanel = document.body.appendChild(document.createElement('aside'));
+controlPanel.style.position = 'fixed';
+controlPanel.style.top = '16px';
+controlPanel.style.left = '16px';
+controlPanel.style.padding = '4px';
+controlPanel.style.background = 'rgba(255,255,255,.8)';
 
-const CELL_SIZE = 4;
+const CELL_SIZE = 5;
 const GRID_COLOR = [204, 204, 204] as const;
 const DEAD_COLOR = [255, 255, 255] as const;
 const ALIVE_COLOR = [0, 0, 0] as const;
 
-const universe = new Universe(Math.floor(innerWidth / (CELL_SIZE + 1)) - 1, Math.floor(innerHeight / (CELL_SIZE + 1)) - 1);
+const universe = new Universe(600, 300);
 universe.random();
 
 const rgbFormat = ([r, g, b]: readonly [number, number, number]) => `rgb(${r},${g},${b})`;
 const rgb32bit = ([r, g, b]: readonly [number, number, number]) => (255 << 24) + (b << 16) + (g << 8) + r;
 
 const countFps = (() => {
-  const fpsElement = document.body.appendChild(document.createElement('div'));
-  fpsElement.style.position = 'fixed';
-  fpsElement.style.right = '8px';
-  fpsElement.style.top = '8px';
+  const fpsElement = controlPanel.appendChild(document.createElement('div'));
   fpsElement.style.color = 'hsl(150,100%,50%)';
   fpsElement.style.textShadow = '1px 1px 1px hsl(150,100%,20%)';
   fpsElement.style.fontVariantNumeric = 'tabular-nums';
+  fpsElement.textContent = '0 fps';
 
   let currentCallbackCount = 0;
   let previousTimestamp = performance.now();
@@ -160,4 +164,34 @@ const renderLoopByWasm = () => {
   });
 };
 
-renderLoopByWasm();
+{
+  let { cancel } = renderLoopByWasm();
+
+  const rendererRadioGroup = controlPanel.appendChild(document.createElement('div'));
+  rendererRadioGroup.innerHTML = `
+    <label><input type="radio" name="renderer">Stop</label><br>
+    <label><input type="radio" name="renderer" value="canvas-api">fillRect (JS)</label><br>
+    <label><input type="radio" name="renderer" value="image-data">putImageData (JS)</label><br>
+    <label><input type="radio" name="renderer" value="wasm" checked>putImageData (WASM)</label><br>
+  `;
+  rendererRadioGroup.addEventListener('change', (e) => {
+    if (!(e.target instanceof HTMLInputElement) || e.target.name !== 'renderer') {
+      return;
+    }
+    cancel();
+    switch (e.target.value) {
+      case 'canvas-api':
+        ({ cancel } = renderLoopByCanvasApi());
+        break;
+      case 'image-data':
+        ({ cancel } = renderLoopByImageData());
+        break;
+      case 'wasm':
+        ({ cancel } = renderLoopByWasm());
+        break;
+      default:
+        cancel = () => {};
+        break;
+    }
+  });
+}
