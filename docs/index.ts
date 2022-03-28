@@ -4,9 +4,10 @@ import { memory } from '../pkg/wasm_game_of_life_bg.wasm';
 const controlPanel = document.body.appendChild(document.createElement('aside'));
 controlPanel.style.position = 'fixed';
 controlPanel.style.top = '16px';
-controlPanel.style.left = '16px';
+controlPanel.style.right = '16px';
 controlPanel.style.padding = '4px';
 controlPanel.style.background = 'rgba(255,255,255,.8)';
+controlPanel.style.whiteSpace = 'nowrap';
 controlPanel.style.userSelect = 'none';
 
 const CELL_SIZE = 3;
@@ -15,20 +16,8 @@ const GRID_COLOR = [204, 204, 204] as const;
 const DEAD_COLOR = [255, 255, 255] as const;
 const ALIVE_COLOR = [0, 0, 0] as const;
 
-const universe = new Universe(800, 800);
-universe.random();
-
 const rgbFormat = ([r, g, b]: readonly [number, number, number]) => `rgb(${r},${g},${b})`;
 const rgb32bit = ([r, g, b]: readonly [number, number, number]) => (255 << 24) + (b << 16) + (g << 8) + r;
-
-const removeCanvas = () => {
-  const canvas = document.querySelector('canvas');
-  if (canvas) {
-    canvas.remove();
-    canvas.width = 0;
-    canvas.height = 0;
-  }
-};
 
 const countFps = (() => {
   const fpsElement = controlPanel.appendChild(document.createElement('div'));
@@ -59,10 +48,10 @@ const renderLoop = (callback: () => void) => {
     animationRequestId = requestAnimationFrame(wrappedCallback);
   };
   wrappedCallback();
-  return { cancel: () => animationRequestId !== undefined && cancelAnimationFrame(animationRequestId) };
+  return { stop: () => animationRequestId !== undefined && cancelAnimationFrame(animationRequestId) };
 };
 
-const forEachCells = (callback: (row: number, column: number, isAlive: unknown) => void) => {
+const forEachCells = (universe: Universe, callback: (row: number, column: number, isAlive: unknown) => void) => {
   const { row_count, column_count } = universe;
   const cells = new Uint8Array(memory.buffer, universe.cells_ptr, row_count * column_count);
   let index = 0;
@@ -93,8 +82,7 @@ const drawGrid = (ctx: CanvasRenderingContext2D) => {
   ctx.putImageData(imageData, 0, 0);
 };
 
-const renderLoopByCanvasApi = () => {
-  const canvas = document.body.appendChild(document.createElement('canvas'));
+const renderLoopByCanvasApi = (canvas: HTMLCanvasElement, universe: Universe) => {
   canvas.width = BORDERED_CELL_SIZE * universe.column_count + 1;
   canvas.height = BORDERED_CELL_SIZE * universe.row_count + 1;
 
@@ -104,7 +92,7 @@ const renderLoopByCanvasApi = () => {
   const deadColor = rgbFormat(DEAD_COLOR);
   const aliveColor = rgbFormat(ALIVE_COLOR);
   const drawCells = () => {
-    forEachCells((row, column, isAlive) => {
+    forEachCells(universe, (row, column, isAlive) => {
       ctx.fillStyle = isAlive ? aliveColor : deadColor;
       ctx.fillRect(column * BORDERED_CELL_SIZE + 1, row * BORDERED_CELL_SIZE + 1, CELL_SIZE, CELL_SIZE);
     });
@@ -116,8 +104,7 @@ const renderLoopByCanvasApi = () => {
   });
 };
 
-const renderLoopByImageData = () => {
-  const canvas = document.body.appendChild(document.createElement('canvas'));
+const renderLoopByImageData = (canvas: HTMLCanvasElement, universe: Universe) => {
   canvas.width = BORDERED_CELL_SIZE * universe.column_count + 1;
   canvas.height = BORDERED_CELL_SIZE * universe.row_count + 1;
 
@@ -140,7 +127,7 @@ const renderLoopByImageData = () => {
   const deadColor = rgb32bit(DEAD_COLOR);
   const aliveColor = rgb32bit(ALIVE_COLOR);
   const drawCells = () => {
-    forEachCells((row, column, isAlive) => {
+    forEachCells(universe, (row, column, isAlive) => {
       const color = isAlive ? aliveColor : deadColor;
       const x = column * BORDERED_CELL_SIZE + 1;
       const y = row * BORDERED_CELL_SIZE + 1;
@@ -155,7 +142,7 @@ const renderLoopByImageData = () => {
   });
 };
 
-const renderLoopByWasm = () => {
+const renderLoopByWasm = (canvas: HTMLCanvasElement, universe: Universe) => {
   const drawer = new UniverseCanvasDrawer(universe.as_ptr, CELL_SIZE, rgb32bit(GRID_COLOR), rgb32bit(DEAD_COLOR), rgb32bit(ALIVE_COLOR));
   const imageData = new ImageData(
     new Uint8ClampedArray(memory.buffer, drawer.data_ptr, drawer.width * drawer.height * 4),
@@ -163,7 +150,6 @@ const renderLoopByWasm = () => {
     drawer.height,
   );
 
-  const canvas = document.body.appendChild(document.createElement('canvas'));
   canvas.width = drawer.width;
   canvas.height = drawer.height;
   const ctx = canvas.getContext('2d')!;
@@ -176,35 +162,58 @@ const renderLoopByWasm = () => {
 };
 
 {
-  let { cancel } = renderLoopByWasm();
+  let canvas = document.body.appendChild(document.createElement('canvas'));
+  let universe = new Universe(200, 200);
+  universe.random();
 
-  const rendererRadioGroup = controlPanel.appendChild(document.createElement('div'));
-  rendererRadioGroup.innerHTML = `
-    <label style="cursor:pointer"><input type="radio" name="renderer">Stop</label><br>
-    <label style="cursor:pointer"><input type="radio" name="renderer" value="canvas-api">fillRect (JS)</label><br>
-    <label style="cursor:pointer"><input type="radio" name="renderer" value="image-data">putImageData (JS)</label><br>
-    <label style="cursor:pointer"><input type="radio" name="renderer" value="wasm" checked>putImageData (WASM)</label><br>
+  let { stop } = renderLoopByWasm(canvas, universe);
+
+  const replaceCanvas = () => {
+    canvas.remove();
+    canvas.width = 0;
+    canvas.height = 0;
+    return (canvas = document.body.appendChild(document.createElement('canvas')));
+  };
+
+  const controls = controlPanel.appendChild(document.createElement('div'));
+  controls.innerHTML = `
+    <fieldset>
+      <legend style="padding:0 8px">Renderer</legend>
+      <label style="cursor:pointer"><input type="radio" name="renderer">Stop</label><br>
+      <label style="cursor:pointer"><input type="radio" name="renderer" value="canvas-api">fillRect (JS)</label><br>
+      <label style="cursor:pointer"><input type="radio" name="renderer" value="image-data">putImageData (JS)</label><br>
+      <label style="cursor:pointer"><input type="radio" name="renderer" value="wasm" checked>putImageData (WASM)</label><br>
+    </fieldset>
+    <fieldset>
+      <legend style="padding:0 8px">Vastness</legend>
+      <label style="cursor:pointer"><input type="radio" name="vastness" value="200" checked>200x200</label><br>
+      <label style="cursor:pointer"><input type="radio" name="vastness" value="400">400x400</label><br>
+      <label style="cursor:pointer"><input type="radio" name="vastness" value="600">600x600</label><br>
+      <label style="cursor:pointer"><input type="radio" name="vastness" value="800">800x800</label><br>
+    </fieldset>
   `;
-  rendererRadioGroup.addEventListener('change', (e) => {
-    if (!(e.target instanceof HTMLInputElement) || e.target.name !== 'renderer') {
+  controls.addEventListener('change', (e) => {
+    if (!(e.target instanceof HTMLInputElement)) {
       return;
     }
-    cancel();
-    switch (e.target.value) {
+    stop();
+    if (e.target.name === 'vastness') {
+      const size = +e.target.value;
+      universe = new Universe(size, size);
+      universe.random();
+    }
+    switch ((controls.querySelector('[name=renderer]:checked') as HTMLInputElement).value) {
       case 'canvas-api':
-        removeCanvas();
-        ({ cancel } = renderLoopByCanvasApi());
+        ({ stop } = renderLoopByCanvasApi(replaceCanvas(), universe));
         break;
       case 'image-data':
-        removeCanvas();
-        ({ cancel } = renderLoopByImageData());
+        ({ stop } = renderLoopByImageData(replaceCanvas(), universe));
         break;
       case 'wasm':
-        removeCanvas();
-        ({ cancel } = renderLoopByWasm());
+        ({ stop } = renderLoopByWasm(replaceCanvas(), universe));
         break;
       default:
-        cancel = () => {};
+        stop = () => {};
         break;
     }
   });
