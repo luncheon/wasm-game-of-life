@@ -10,6 +10,7 @@ controlPanel.style.background = 'rgba(255,255,255,.8)';
 controlPanel.style.userSelect = 'none';
 
 const CELL_SIZE = 3;
+const BORDERED_CELL_SIZE = CELL_SIZE + 1;
 const GRID_COLOR = [204, 204, 204] as const;
 const DEAD_COLOR = [255, 255, 255] as const;
 const ALIVE_COLOR = [0, 0, 0] as const;
@@ -78,13 +79,13 @@ const drawGrid = (ctx: CanvasRenderingContext2D) => {
   const data = new Int32Array(imageData.data.buffer);
   const color = rgb32bit(GRID_COLOR);
   // vertical
-  for (let x = 0; x < ctx.canvas.width; x += CELL_SIZE + 1) {
+  for (let x = 0; x < ctx.canvas.width; x += BORDERED_CELL_SIZE) {
     for (let y = 0; y < ctx.canvas.height; y++) {
       data[y * ctx.canvas.width + x] = color;
     }
   }
   // horizontal
-  for (let y = 0; y < ctx.canvas.height; y += CELL_SIZE + 1) {
+  for (let y = 0; y < ctx.canvas.height; y += BORDERED_CELL_SIZE) {
     for (let x = 0; x < ctx.canvas.width; x++) {
       data[y * ctx.canvas.width + x] = color;
     }
@@ -94,8 +95,8 @@ const drawGrid = (ctx: CanvasRenderingContext2D) => {
 
 const renderLoopByCanvasApi = () => {
   const canvas = document.body.appendChild(document.createElement('canvas'));
-  canvas.width = (CELL_SIZE + 1) * universe.column_count + 1;
-  canvas.height = (CELL_SIZE + 1) * universe.row_count + 1;
+  canvas.width = BORDERED_CELL_SIZE * universe.column_count + 1;
+  canvas.height = BORDERED_CELL_SIZE * universe.row_count + 1;
 
   const ctx = canvas.getContext('2d')!;
   drawGrid(ctx);
@@ -105,7 +106,7 @@ const renderLoopByCanvasApi = () => {
   const drawCells = () => {
     forEachCells((row, column, isAlive) => {
       ctx.fillStyle = isAlive ? aliveColor : deadColor;
-      ctx.fillRect(column * (CELL_SIZE + 1) + 1, row * (CELL_SIZE + 1) + 1, CELL_SIZE, CELL_SIZE);
+      ctx.fillRect(column * BORDERED_CELL_SIZE + 1, row * BORDERED_CELL_SIZE + 1, CELL_SIZE, CELL_SIZE);
     });
   };
 
@@ -117,8 +118,8 @@ const renderLoopByCanvasApi = () => {
 
 const renderLoopByImageData = () => {
   const canvas = document.body.appendChild(document.createElement('canvas'));
-  canvas.width = (CELL_SIZE + 1) * universe.column_count + 1;
-  canvas.height = (CELL_SIZE + 1) * universe.row_count + 1;
+  canvas.width = BORDERED_CELL_SIZE * universe.column_count + 1;
+  canvas.height = BORDERED_CELL_SIZE * universe.row_count + 1;
 
   const ctx = canvas.getContext('2d')!;
   drawGrid(ctx);
@@ -141,8 +142,8 @@ const renderLoopByImageData = () => {
   const drawCells = () => {
     forEachCells((row, column, isAlive) => {
       const color = isAlive ? aliveColor : deadColor;
-      const x = column * (CELL_SIZE + 1) + 1;
-      const y = row * (CELL_SIZE + 1) + 1;
+      const x = column * BORDERED_CELL_SIZE + 1;
+      const y = row * BORDERED_CELL_SIZE + 1;
       data[x + y * canvas.width] !== color && fillRect(x, y, CELL_SIZE, CELL_SIZE, color);
     });
     ctx.putImageData(imageData, 0, 0);
