@@ -25,32 +25,35 @@ impl Canvas {
         &self.data
     }
 
-    pub fn pixel_color(&self, x: u32, y: u32) -> u32 {
-        self.data[(y * self.width + x) as usize]
+    fn get_index(&self, x: u32, y: u32) -> usize {
+        (y * self.width + x) as usize
+    }
+
+    pub fn get_pixel_color(&self, x: u32, y: u32) -> u32 {
+        self.data[self.get_index(x, y)]
     }
 
     pub fn draw_line_vertical(&mut self, x: u32, y1: u32, y2: u32, color: u32) {
-        let mut index = y1 * self.width + x;
+        let mut index = self.get_index(x, y1);
         for _ in y1..=y2 {
-            self.data[index as usize] = color;
-            index += self.width;
+            self.data[index] = color;
+            index += self.width as usize;
         }
     }
 
     pub fn draw_line_horizontal(&mut self, y: u32, x1: u32, x2: u32, color: u32) {
-        let offset = (y * self.width) as usize;
-        for index in (x1 as usize + offset)..=(x2 as usize + offset) {
+        for index in self.get_index(x1, y)..=self.get_index(x2, y) {
             self.data[index] = color;
         }
     }
 
     pub fn fill_rect(&mut self, x: u32, y: u32, w: u32, h: u32, color: u32) {
-        let mut y_index = (self.width * y) as usize;
-        for _y in 0..h {
-            for index in (y_index + x as usize)..(y_index + x as usize + w as usize) {
+        let mut offset = self.get_index(x, y);
+        for _ in 0..h {
+            for index in offset..(offset + w as usize) {
                 self.data[index] = color;
             }
-            y_index += self.width as usize;
+            offset += self.width as usize;
         }
     }
 }

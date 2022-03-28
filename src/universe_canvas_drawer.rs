@@ -78,7 +78,7 @@ impl UniverseCanvasDrawer {
                 } else {
                     self.dead_color
                 };
-                if self.canvas.pixel_color(x, y) != color {
+                if self.canvas.get_pixel_color(x, y) != color {
                     self.canvas.fill_rect(x, y, self.cell_size, self.cell_size, color);
                 }
                 x += self.bordered_cell_size;
