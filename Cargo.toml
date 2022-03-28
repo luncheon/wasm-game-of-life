@@ -2,9 +2,9 @@
 name = "wasm-game-of-life"
 version = "0.0.0"
 description = ""
-repository = ""
+edition = "2021"
 license = "WTFPL"
-edition = "2018"
+repository = "https://github.com/luncheon/wasm-game-of-life"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

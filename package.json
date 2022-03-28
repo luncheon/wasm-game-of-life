@@ -1,6 +1,8 @@
 {
   "name": "wasm-game-of-life",
   "version": "0.0.0",
+  "license": "WTFPL",
+  "repository": "luncheon/wasm-game-of-life",
   "prettier": {
     "printWidth": 140,
     "endOfLine": "lf",
