@@ -76,26 +76,21 @@ impl Universe {
     }
 
     fn live_neighbor_count(&self, row: u32, column: u32) -> u32 {
-        let row_count = self.cells.row_count();
-        let column_count = self.cells.column_count();
-        [
-            (-1, -1),
-            (-1, 0),
-            (-1, 1),
-            (0, -1),
-            (0, 1),
-            (1, -1),
-            (1, 0),
-            (1, 1),
-        ]
-        .iter()
-        .filter(|(row_offset, column_offset)| {
-            self.cells.get(
-                ((row + *row_offset as u32) + row_count) % row_count,
-                ((column + *column_offset as u32) + column_count) % column_count,
-            )
-        })
-        .count() as u32
+        let rows = self.cells.row_count();
+        let columns = self.cells.column_count();
+        let row1 = if row == 0 { rows - 1 } else { row - 1 };
+        let row2 = if row == rows - 1 { 0 } else { row + 1 };
+        let column1 = if column == 0 { columns - 1 } else { column - 1 };
+        let column2 = if column == columns - 1 { 0 } else { column + 1 };
+
+        self.cells.get(row1, column1) as u32
+            + self.cells.get(row1, column) as u32
+            + self.cells.get(row1, column2) as u32
+            + self.cells.get(row, column1) as u32
+            + self.cells.get(row, column2) as u32
+            + self.cells.get(row2, column1) as u32
+            + self.cells.get(row2, column) as u32
+            + self.cells.get(row2, column2) as u32
     }
 
     pub fn tick(&mut self) {
