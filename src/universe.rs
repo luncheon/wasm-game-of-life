@@ -1,29 +1,15 @@
-use super::js;
+use super::bit_table::BitTable;
 use wasm_bindgen::prelude::*;
-
-fn random_bool() -> bool {
-    static mut X: Option<u32> = None;
-    let mut y = unsafe { X.unwrap_or_else(|| js::Date::now() as u64 as u32) };
-    y = y ^ (y << 13);
-    y = y ^ (y >> 17);
-    y = y ^ (y << 5);
-    unsafe {
-        X = Some(y);
-    }
-    y & 1 == 1
-}
 
 #[wasm_bindgen]
 pub struct Universe {
-    width: u32,
-    height: u32,
-    cells: Vec<bool>,
-    inactive_cells: Vec<bool>,
+    cells: BitTable,
+    inactive_cells: BitTable,
 }
 
 impl Universe {
-    pub fn cells(&self) -> &Vec<bool> {
-        &self.cells
+    pub fn cell(&self, row: u32, column: u32) -> bool {
+        self.cells.get(row, column)
     }
 }
 
@@ -31,19 +17,14 @@ impl Universe {
 impl Universe {
     #[wasm_bindgen(constructor)]
     pub fn new(width: u32, height: u32) -> Self {
-        let size = (width * height) as usize;
         Universe {
-            width,
-            height,
-            cells: vec![false; size],
-            inactive_cells: vec![false; size],
+            cells: BitTable::falsities(height, width),
+            inactive_cells: BitTable::falsities(height, width),
         }
     }
 
     pub fn random(&mut self) {
-        self.cells = (0..(self.width * self.height))
-            .map(|_| random_bool())
-            .collect();
+        self.cells = BitTable::randoms(self.cells.row_count(), self.cells.column_count());
     }
 
     pub fn single_space_ship(&mut self, row: u32, column: u32) {
@@ -69,8 +50,8 @@ impl Universe {
             (3, 3, true),
             (3, 4, false),
         ] {
-            let index = self.get_index(row + row_offset, column + column_offset);
-            self.cells[index] = cell;
+            self.cells
+                .set(row + row_offset, column + column_offset, cell);
         }
     }
 
@@ -80,40 +61,23 @@ impl Universe {
     }
 
     #[wasm_bindgen(getter)]
-    pub fn width(&self) -> u32 {
-        self.width
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn height(&self) -> u32 {
-        self.height
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn cells_ptr(&self) -> *const bool {
+    pub fn cells_ptr(&self) -> *const u8 {
         self.cells.as_ptr()
     }
 
-    pub fn to_string(&self) -> String {
-        self.cells
-            .as_slice()
-            .chunks(self.width as usize)
-            .flat_map(|line| {
-                (*line)
-                    .iter()
-                    .map(|cell| if *cell { '◼' } else { '◻' })
-                    .chain(std::iter::once('\n'))
-            })
-            .collect()
+    #[wasm_bindgen(getter)]
+    pub fn row_count(&self) -> u32 {
+        self.cells.row_count()
     }
 
-    fn get_index(&self, row: u32, column: u32) -> usize {
-        let row = (row + self.height) % self.height;
-        let column = (column + self.width) % self.width;
-        (row * self.width + column) as usize
+    #[wasm_bindgen(getter)]
+    pub fn column_count(&self) -> u32 {
+        self.cells.column_count()
     }
 
     fn live_neighbor_count(&self, row: u32, column: u32) -> u32 {
+        let row_count = self.cells.row_count();
+        let column_count = self.cells.column_count();
         [
             (-1, -1),
             (-1, 0),
@@ -126,16 +90,18 @@ impl Universe {
         ]
         .iter()
         .filter(|(row_offset, column_offset)| {
-            self.cells[self.get_index(row + *row_offset as u32, column + *column_offset as u32)]
+            self.cells.get(
+                ((row + *row_offset as u32) + row_count) % row_count,
+                ((column + *column_offset as u32) + column_count) % column_count,
+            )
         })
         .count() as u32
     }
 
     pub fn tick(&mut self) {
-        let mut index = 0;
-        for row in 0..self.height {
-            for column in 0..self.width {
-                let cell = self.cells[index];
+        for row in 0..self.cells.row_count() {
+            for column in 0..self.cells.column_count() {
+                let cell = self.cells.get(row, column);
                 let live_neighbors = self.live_neighbor_count(row, column);
                 let next_cell = match (cell, live_neighbors) {
                     // Rule 1: Any live cell with fewer than two live neighbors
@@ -153,8 +119,7 @@ impl Universe {
                     // All other cells remain in the same state.
                     (otherwise, _) => otherwise,
                 };
-                self.inactive_cells[index] = next_cell;
-                index += 1;
+                self.inactive_cells.set(row, column, next_cell);
             }
         }
         std::mem::swap(&mut self.cells, &mut self.inactive_cells);

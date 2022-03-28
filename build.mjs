@@ -16,7 +16,13 @@ const esbuildOptions = {
   plugins: [wasmLoader({ mode: 'deferred' })],
 };
 
-const buildWasm = () => execSync('wasm-pack --log-level warn build', { stdio: 'inherit' });
+const buildWasm = () => {
+  try {
+    execSync('wasm-pack --log-level warn build', { stdio: 'inherit' });
+  } catch (error) {
+    console.error(error);
+  }
+};
 buildWasm();
 
 if (process.argv.includes('--serve')) {

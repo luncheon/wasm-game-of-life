@@ -1,3 +1,4 @@
+mod bit_table;
 mod canvas;
 mod js;
 pub mod universe;

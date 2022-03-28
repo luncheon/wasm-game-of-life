@@ -27,8 +27,8 @@ impl UniverseCanvasDrawer {
     ) -> Self {
         let universe = unsafe { &*universe_ptr };
         let bordered_cell_size = cell_size + 1;
-        let width = universe.width() * bordered_cell_size + 1;
-        let height = universe.height() * bordered_cell_size + 1;
+        let width = universe.column_count() * bordered_cell_size + 1;
+        let height = universe.row_count() * bordered_cell_size + 1;
         let mut drawer = Self {
             universe_ptr,
             width,
@@ -75,12 +75,11 @@ impl UniverseCanvasDrawer {
 
     fn draw_cells(&mut self) {
         let universe = unsafe { &*self.universe_ptr };
-        let mut index = 0;
         let mut x = 1;
         let mut y = 1;
-        for _row in 0..universe.height() {
-            for _column in 0..universe.width() {
-                let color = if universe.cells()[index] {
+        for row in 0..universe.row_count() {
+            for column in 0..universe.column_count() {
+                let color = if universe.cell(row, column) {
                     self.alive_color
                 } else {
                     self.dead_color
@@ -90,7 +89,6 @@ impl UniverseCanvasDrawer {
                         .fill_rect(x, y, self.cell_size, self.cell_size, color);
                 }
                 x += self.bordered_cell_size;
-                index += 1;
             }
             x = 1;
             y += self.bordered_cell_size;
