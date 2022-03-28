@@ -62,10 +62,11 @@ const renderLoop = (callback: () => void) => {
 };
 
 const forEachCells = (callback: (row: number, column: number, isAlive: unknown) => void) => {
-  const cells = new Uint8Array(memory.buffer, universe.cells_ptr, universe.row_count * universe.column_count);
+  const { row_count, column_count } = universe;
+  const cells = new Uint8Array(memory.buffer, universe.cells_ptr, row_count * column_count);
   let index = 0;
-  for (let row = 0; row < universe.row_count; row++) {
-    for (let column = 0; column < universe.column_count; column++) {
+  for (let row = 0; row < row_count; row++) {
+    for (let column = 0; column < column_count; column++) {
       callback(row, column, cells[index]);
       index++;
     }
@@ -74,7 +75,7 @@ const forEachCells = (callback: (row: number, column: number, isAlive: unknown) 
 
 const drawGrid = (ctx: CanvasRenderingContext2D) => {
   const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-  const data = new Uint32Array(imageData.data.buffer);
+  const data = new Int32Array(imageData.data.buffer);
   const color = rgb32bit(GRID_COLOR);
   // vertical
   for (let x = 0; x < ctx.canvas.width; x += CELL_SIZE + 1) {
@@ -123,7 +124,7 @@ const renderLoopByImageData = () => {
   drawGrid(ctx);
 
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = new Uint32Array(imageData.data.buffer);
+  const data = new Int32Array(imageData.data.buffer);
 
   const fillRect = (x: number, y: number, w: number, h: number, color: number) => {
     let baseIndex = x + y * canvas.width;
@@ -140,7 +141,9 @@ const renderLoopByImageData = () => {
   const drawCells = () => {
     forEachCells((row, column, isAlive) => {
       const color = isAlive ? aliveColor : deadColor;
-      fillRect(column * (CELL_SIZE + 1) + 1, row * (CELL_SIZE + 1) + 1, CELL_SIZE, CELL_SIZE, color);
+      const x = column * (CELL_SIZE + 1) + 1;
+      const y = row * (CELL_SIZE + 1) + 1;
+      data[x + y * canvas.width] !== color && fillRect(x, y, CELL_SIZE, CELL_SIZE, color);
     });
     ctx.putImageData(imageData, 0, 0);
   };
