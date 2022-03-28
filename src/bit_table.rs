@@ -31,9 +31,7 @@ impl BitTable {
         Self {
             row_count,
             column_count,
-            bits: (0..(row_count * column_count))
-                .map(|_| random_bool())
-                .collect(),
+            bits: (0..(row_count * column_count)).map(|_| random_bool()).collect(),
         }
     }
 

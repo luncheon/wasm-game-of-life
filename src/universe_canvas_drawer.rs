@@ -18,13 +18,7 @@ pub struct UniverseCanvasDrawer {
 #[wasm_bindgen]
 impl UniverseCanvasDrawer {
     #[wasm_bindgen(constructor)]
-    pub fn new(
-        universe_ptr: *const Universe,
-        cell_size: u32,
-        grid_color: u32,
-        dead_color: u32,
-        alive_color: u32,
-    ) -> Self {
+    pub fn new(universe_ptr: *const Universe, cell_size: u32, grid_color: u32, dead_color: u32, alive_color: u32) -> Self {
         let universe = unsafe { &*universe_ptr };
         let bordered_cell_size = cell_size + 1;
         let width = universe.column_count() * bordered_cell_size + 1;
@@ -85,8 +79,7 @@ impl UniverseCanvasDrawer {
                     self.dead_color
                 };
                 if self.canvas.pixel_color(x, y) != color {
-                    self.canvas
-                        .fill_rect(x, y, self.cell_size, self.cell_size, color);
+                    self.canvas.fill_rect(x, y, self.cell_size, self.cell_size, color);
                 }
                 x += self.bordered_cell_size;
             }

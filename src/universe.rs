@@ -50,8 +50,7 @@ impl Universe {
             (3, 3, true),
             (3, 4, false),
         ] {
-            self.cells
-                .set(row + row_offset, column + column_offset, cell);
+            self.cells.set(row + row_offset, column + column_offset, cell);
         }
     }
 
