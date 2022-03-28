@@ -50,6 +50,7 @@ impl BitTable {
         (row * self.column_count + column) as usize
     }
 
+    #[inline]
     pub fn get(&self, row: u32, column: u32) -> bool {
         let index = self.get_index(row, column);
         self.bits[index]
