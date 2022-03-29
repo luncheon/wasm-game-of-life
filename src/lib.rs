@@ -1,6 +1,6 @@
-mod bit_table;
 mod canvas;
 mod js;
+mod table;
 pub mod universe;
 pub mod universe_canvas_drawer;
 mod utils;

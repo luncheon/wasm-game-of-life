@@ -1,10 +1,23 @@
-use super::bit_table::BitTable;
+use super::js;
+use super::table::Table;
 use wasm_bindgen::prelude::*;
+
+fn random_bool() -> bool {
+    static mut X: Option<u32> = None;
+    let mut y = unsafe { X.unwrap_or_else(|| js::Date::now() as u64 as u32) };
+    y = y ^ (y << 13);
+    y = y ^ (y >> 17);
+    y = y ^ (y << 5);
+    unsafe {
+        X = Some(y);
+    }
+    y & 1 == 1
+}
 
 #[wasm_bindgen]
 pub struct Universe {
-    cells: BitTable,
-    inactive_cells: BitTable,
+    cells: Table<bool>,
+    inactive_cells: Table<bool>,
 }
 
 impl Universe {
@@ -18,13 +31,13 @@ impl Universe {
     #[wasm_bindgen(constructor)]
     pub fn new(width: u32, height: u32) -> Self {
         Universe {
-            cells: BitTable::falsities(height, width),
-            inactive_cells: BitTable::falsities(height, width),
+            cells: Table::with_fill(height, width, false),
+            inactive_cells: Table::with_fill(height, width, false),
         }
     }
 
     pub fn random(&mut self) {
-        self.cells = BitTable::randoms(self.cells.row_count(), self.cells.column_count());
+        self.cells = Table::generate(self.cells.row_count(), self.cells.column_count(), |_| random_bool());
     }
 
     pub fn single_space_ship(&mut self, row: u32, column: u32) {
@@ -60,7 +73,7 @@ impl Universe {
     }
 
     #[wasm_bindgen(getter)]
-    pub fn cells_ptr(&self) -> *const u8 {
+    pub fn cells_ptr(&self) -> *const bool {
         self.cells.as_ptr()
     }
 
