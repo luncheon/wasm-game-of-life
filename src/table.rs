@@ -1,19 +1,19 @@
 pub struct Table<T: Copy> {
-    row_count: u32,
-    column_count: u32,
+    row_count: usize,
+    column_count: usize,
     values: Vec<T>,
 }
 
 impl<T: Copy> Table<T> {
-    pub fn with_fill(row_count: u32, column_count: u32, value: T) -> Self {
+    pub fn with_fill(row_count: usize, column_count: usize, value: T) -> Self {
         Self {
             row_count,
             column_count,
-            values: vec![value; (row_count * column_count) as usize],
+            values: vec![value; row_count * column_count],
         }
     }
 
-    pub fn generate<F: Fn(u32) -> T>(row_count: u32, column_count: u32, generator: F) -> Self {
+    pub fn generate<F: Fn(usize) -> T>(row_count: usize, column_count: usize, generator: F) -> Self {
         Self {
             row_count,
             column_count,
@@ -21,24 +21,24 @@ impl<T: Copy> Table<T> {
         }
     }
 
-    pub fn row_count(&self) -> u32 {
+    pub fn row_count(&self) -> usize {
         self.row_count
     }
 
-    pub fn column_count(&self) -> u32 {
+    pub fn column_count(&self) -> usize {
         self.column_count
     }
 
-    fn get_index(&self, row: u32, column: u32) -> usize {
-        (row * self.column_count + column) as usize
+    fn get_index(&self, row: usize, column: usize) -> usize {
+        row * self.column_count + column
     }
 
-    pub fn get(&self, row: u32, column: u32) -> T {
+    pub fn get(&self, row: usize, column: usize) -> T {
         let index = self.get_index(row, column);
         self.values[index]
     }
 
-    pub fn set(&mut self, row: u32, column: u32, value: T) {
+    pub fn set(&mut self, row: usize, column: usize, value: T) {
         let index = self.get_index(row, column);
         self.values[index] = value;
     }

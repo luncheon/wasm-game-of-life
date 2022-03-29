@@ -51,13 +51,16 @@ const renderLoop = (callback: () => void) => {
   return { stop: () => animationRequestId !== undefined && cancelAnimationFrame(animationRequestId) };
 };
 
-const forEachCells = (universe: Universe, callback: (row: number, column: number, isAlive: unknown) => void) => {
+const forEachCells = (universe: Universe, callback: (row: number, column: number, isAlive: unknown) => void, modifiedOnly?: boolean) => {
   const { row_count, column_count } = universe;
   const cells = new Uint8Array(memory.buffer, universe.cells_ptr, row_count * column_count);
   let index = 0;
   for (let row = 0; row < row_count; row++) {
     for (let column = 0; column < column_count; column++) {
-      callback(row, column, cells[index]);
+      const cell = cells[index]!;
+      if (!modifiedOnly || cell & 2) {
+        callback(row, column, cell & 1);
+      }
       index++;
     }
   }
@@ -91,16 +94,15 @@ const renderLoopByCanvasApi = (canvas: HTMLCanvasElement, universe: Universe) =>
 
   const deadColor = rgbFormat(DEAD_COLOR);
   const aliveColor = rgbFormat(ALIVE_COLOR);
-  const drawCells = () => {
-    forEachCells(universe, (row, column, isAlive) => {
-      ctx.fillStyle = isAlive ? aliveColor : deadColor;
-      ctx.fillRect(column * BORDERED_CELL_SIZE + 1, row * BORDERED_CELL_SIZE + 1, CELL_SIZE, CELL_SIZE);
-    });
+  const drawCell = (row: number, column: number, isAlive: unknown) => {
+    ctx.fillStyle = isAlive ? aliveColor : deadColor;
+    ctx.fillRect(column * BORDERED_CELL_SIZE + 1, row * BORDERED_CELL_SIZE + 1, CELL_SIZE, CELL_SIZE);
   };
 
+  forEachCells(universe, drawCell);
   return renderLoop(() => {
-    drawCells();
     universe.tick();
+    forEachCells(universe, drawCell, true);
   });
 };
 
@@ -126,19 +128,15 @@ const renderLoopByImageData = (canvas: HTMLCanvasElement, universe: Universe) =>
 
   const deadColor = rgb32bit(DEAD_COLOR);
   const aliveColor = rgb32bit(ALIVE_COLOR);
-  const drawCells = () => {
-    forEachCells(universe, (row, column, isAlive) => {
-      const color = isAlive ? aliveColor : deadColor;
-      const x = column * BORDERED_CELL_SIZE + 1;
-      const y = row * BORDERED_CELL_SIZE + 1;
-      data[x + y * canvas.width] !== color && fillRect(x, y, CELL_SIZE, CELL_SIZE, color);
-    });
-    ctx.putImageData(imageData, 0, 0);
+  const drawCell = (row: number, column: number, isAlive: unknown) => {
+    fillRect(column * BORDERED_CELL_SIZE + 1, row * BORDERED_CELL_SIZE + 1, CELL_SIZE, CELL_SIZE, isAlive ? aliveColor : deadColor);
   };
 
+  forEachCells(universe, drawCell);
   return renderLoop(() => {
-    drawCells();
+    ctx.putImageData(imageData, 0, 0);
     universe.tick();
+    forEachCells(universe, drawCell, true);
   });
 };
 
@@ -154,10 +152,11 @@ const renderLoopByWasm = (canvas: HTMLCanvasElement, universe: Universe) => {
   canvas.height = drawer.height;
   const ctx = canvas.getContext('2d')!;
 
+  drawer.draw_cells(false);
   return renderLoop(() => {
-    drawer.draw();
     ctx.putImageData(imageData, 0, 0);
     universe.tick();
+    drawer.draw_cells(true);
   });
 };
 
