@@ -1,5 +1,6 @@
 use super::js;
 use super::table::Table;
+use super::utils;
 use wasm_bindgen::prelude::*;
 
 use cell_state::CellState;
@@ -59,6 +60,8 @@ impl Universe {
 impl Universe {
     #[wasm_bindgen(constructor)]
     pub fn new(width: usize, height: usize) -> Self {
+        utils::set_panic_hook();
+
         Universe {
             cells: Table::with_fill(height, width, cell_state::DEATH),
             inactive_cells: Table::with_fill(height, width, cell_state::DEATH),
