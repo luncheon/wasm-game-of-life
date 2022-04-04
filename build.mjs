@@ -1,6 +1,6 @@
-import { execSync } from 'child_process';
 import esbuild from 'esbuild';
 import { wasmLoader } from 'esbuild-plugin-wasm';
+import { execSync } from 'node:child_process';
 import { watch } from 'node:fs';
 
 /**
