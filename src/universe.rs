@@ -119,6 +119,11 @@ impl Universe {
         self.cells.column_count()
     }
 
+    pub fn set_cell_alive(&mut self, row: usize, column: usize, is_alive: bool) {
+        self.cells
+            .set(row, column, if is_alive { cell_state::BIRTH } else { cell_state::DEATH })
+    }
+
     fn live_neighbor_count(&self, row: usize, column: usize) -> usize {
         let rows = self.cells.row_count();
         let columns = self.cells.column_count();

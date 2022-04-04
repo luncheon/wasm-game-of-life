@@ -85,7 +85,7 @@ const drawGrid = (ctx: CanvasRenderingContext2D) => {
   ctx.putImageData(imageData, 0, 0);
 };
 
-const renderLoopByCanvasApi = (canvas: HTMLCanvasElement, universe: Universe) => {
+const canvasApiRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   canvas.width = BORDERED_CELL_SIZE * universe.column_count + 1;
   canvas.height = BORDERED_CELL_SIZE * universe.row_count + 1;
 
@@ -100,13 +100,10 @@ const renderLoopByCanvasApi = (canvas: HTMLCanvasElement, universe: Universe) =>
   };
 
   forEachCells(universe, drawCell);
-  return renderLoop(() => {
-    universe.tick();
-    forEachCells(universe, drawCell, true);
-  });
+  return () => forEachCells(universe, drawCell, true);
 };
 
-const renderLoopByImageData = (canvas: HTMLCanvasElement, universe: Universe) => {
+const putImageDataRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   canvas.width = BORDERED_CELL_SIZE * universe.column_count + 1;
   canvas.height = BORDERED_CELL_SIZE * universe.row_count + 1;
 
@@ -133,14 +130,14 @@ const renderLoopByImageData = (canvas: HTMLCanvasElement, universe: Universe) =>
   };
 
   forEachCells(universe, drawCell);
-  return renderLoop(() => {
-    ctx.putImageData(imageData, 0, 0);
-    universe.tick();
+  ctx.putImageData(imageData, 0, 0);
+  return () => {
     forEachCells(universe, drawCell, true);
-  });
+    ctx.putImageData(imageData, 0, 0);
+  };
 };
 
-const renderLoopByWasm = (canvas: HTMLCanvasElement, universe: Universe) => {
+const wasmRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   const drawer = new UniverseCanvasDrawer(universe.as_ptr, CELL_SIZE, rgb32bit(GRID_COLOR), rgb32bit(DEAD_COLOR), rgb32bit(ALIVE_COLOR));
   const imageData = new ImageData(
     new Uint8ClampedArray(memory.buffer, drawer.data_ptr, drawer.width * drawer.height * 4),
@@ -153,11 +150,11 @@ const renderLoopByWasm = (canvas: HTMLCanvasElement, universe: Universe) => {
   const ctx = canvas.getContext('2d')!;
 
   drawer.draw_cells(false);
-  return renderLoop(() => {
+  ctx.putImageData(imageData, 0, 0);
+  return () => {
+    drawer.draw_cells(false);
     ctx.putImageData(imageData, 0, 0);
-    universe.tick();
-    drawer.draw_cells(true);
-  });
+  };
 };
 
 {
@@ -165,13 +162,54 @@ const renderLoopByWasm = (canvas: HTMLCanvasElement, universe: Universe) => {
   let universe = new Universe(200, 200);
   universe.random();
 
-  let { stop } = renderLoopByWasm(canvas, universe);
+  const clampRow = (value: number) => Math.min(Math.floor(value), universe.row_count - 1);
+  const clampColumn = (value: number) => Math.min(Math.floor(value), universe.column_count - 1);
+  const universeRowColumnFromClientXY = (clientX: number, clientY: number) => {
+    const clientRect = canvas.getBoundingClientRect();
+    const canvasX = ((clientX - clientRect.x - 1) * canvas.width) / clientRect.width;
+    const canvasY = ((clientY - clientRect.y - 1) * canvas.height) / clientRect.height;
+    return [clampRow(canvasY / (CELL_SIZE + 1)), clampColumn(canvasX / (CELL_SIZE + 1))] as const;
+  };
+  addEventListener('pointerdown', (event) => {
+    if (event.target === canvas) {
+      let [row, column] = universeRowColumnFromClientXY(event.clientX, event.clientY);
+      universe.set_cell_alive(row, column, true);
+      render();
+
+      const onPointerMove = (event: PointerEvent) => {
+        const [newRow, newColumn] = universeRowColumnFromClientXY(event.clientX, event.clientY);
+        const distance = Math.hypot(newRow - row, newColumn - column);
+        const angle = Math.atan2(newRow - row, newColumn - column);
+        const rowUnit = Math.sin(angle);
+        const columnUnit = Math.cos(angle);
+        for (let i = 0; i < distance; i++) {
+          universe.set_cell_alive(clampRow(row + i * rowUnit), clampColumn(column + i * columnUnit), true);
+        }
+        universe.set_cell_alive(row, column, true);
+        row = newRow;
+        column = newColumn;
+        render();
+      };
+      const onPointerUp = () => {
+        removeEventListener('pointerup', onPointerUp);
+        removeEventListener('pointercancel', onPointerUp);
+        removeEventListener('pointermove', onPointerMove);
+        play();
+      };
+      addEventListener('pointerup', onPointerUp);
+      addEventListener('pointercancel', onPointerUp);
+      addEventListener('pointermove', onPointerMove);
+      stop();
+    }
+  });
 
   const replaceCanvas = () => {
     canvas.remove();
     canvas.width = 0;
     canvas.height = 0;
-    return (canvas = document.body.appendChild(document.createElement('canvas')));
+    canvas = document.body.appendChild(document.createElement('canvas'));
+    canvas.style.cursor = 'crosshair';
+    return canvas;
   };
 
   const controls = controlPanel.appendChild(document.createElement('div'));
@@ -201,19 +239,30 @@ const renderLoopByWasm = (canvas: HTMLCanvasElement, universe: Universe) => {
       universe = new Universe(size, size);
       universe.random();
     }
+    play();
+  });
+
+  let render: () => void;
+  let stop: () => void;
+  const play = () => {
     switch ((controls.querySelector('[name=renderer]:checked') as HTMLInputElement).value) {
       case 'canvas-api':
-        ({ stop } = renderLoopByCanvasApi(replaceCanvas(), universe));
+        render = canvasApiRenderer(replaceCanvas(), universe);
         break;
       case 'image-data':
-        ({ stop } = renderLoopByImageData(replaceCanvas(), universe));
+        render = putImageDataRenderer(replaceCanvas(), universe);
         break;
       case 'wasm':
-        ({ stop } = renderLoopByWasm(replaceCanvas(), universe));
+        render = wasmRenderer(replaceCanvas(), universe);
         break;
       default:
         stop = () => {};
-        break;
+        return;
     }
-  });
+    ({ stop } = renderLoop(() => {
+      universe.tick();
+      render();
+    }));
+  };
+  play();
 }
