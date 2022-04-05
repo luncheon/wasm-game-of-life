@@ -4,12 +4,12 @@ use super::utils;
 use wasm_bindgen::prelude::*;
 
 use cell_state::CellState;
-mod cell_state {
+pub mod cell_state {
     const DEAD: u8 = 0x00;
     const ALIVE: u8 = 0x01;
     const MODIFIED: u8 = 0x02;
 
-    #[derive(Copy, Clone)]
+    #[derive(Copy, Clone, PartialEq, Eq, Debug)]
     pub struct CellState(u8);
 
     impl CellState {
@@ -51,8 +51,23 @@ pub struct Universe {
 }
 
 impl Universe {
+    pub fn generate<F: Fn(usize) -> CellState>(width: usize, height: usize, generator: F) -> Self {
+        Universe {
+            cells: Table::generate(height, width, generator),
+            inactive_cells: Table::with_fill(height, width, cell_state::DEATH),
+        }
+    }
+
     pub fn cell(&self, row: usize, column: usize) -> CellState {
         self.cells.get(row, column)
+    }
+
+    pub fn set_cell(&mut self, row: usize, column: usize, state: CellState) {
+        self.cells.set(row, column, state)
+    }
+
+    pub fn cells_slice(&self) -> &[CellState] {
+        self.cells.as_slice()
     }
 }
 
