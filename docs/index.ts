@@ -157,6 +157,149 @@ const wasmRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   };
 };
 
+const raii = <T>(callback: (scoped: <Resource>(resource: Resource, dispose: (x: Resource) => void) => Resource) => T) => {
+  const disposers: (() => void)[] = [];
+  try {
+    return callback((x, dispose) => (disposers.unshift(() => dispose(x)), x));
+  } finally {
+    disposers.forEach((dispose) => dispose());
+  }
+};
+
+const webglProgram = (gl: WebGL2RenderingContext, vertexShaderSource: string, fragmentShaderSource: string) =>
+  raii((scoped) => {
+    const vertexShader = scoped(gl.createShader(gl.VERTEX_SHADER)!, (shader) => gl.deleteShader(shader));
+    gl.shaderSource(vertexShader, vertexShaderSource);
+    gl.compileShader(vertexShader);
+    if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+      throw Error('vertex shader compilation failure: ' + gl.getShaderInfoLog(vertexShader));
+    }
+
+    const fragmentShader = scoped(gl.createShader(gl.FRAGMENT_SHADER)!, (shader) => gl.deleteShader(shader));
+    gl.shaderSource(fragmentShader, fragmentShaderSource);
+    gl.compileShader(fragmentShader);
+    if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+      throw Error('fragment shader compilation failure: ' + gl.getShaderInfoLog(fragmentShader));
+    }
+
+    const program = scoped(gl.createProgram()!, (program) => gl.deleteProgram(program));
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      throw Error('program link failure: ' + gl.getProgramInfoLog(program));
+    }
+
+    gl.useProgram(program);
+    return program;
+  });
+
+const webgl2Renderer = (canvas: HTMLCanvasElement, universe: Universe) => {
+  const { column_count, row_count } = universe;
+  canvas.width = BORDERED_CELL_SIZE * column_count + 1;
+  canvas.height = BORDERED_CELL_SIZE * row_count + 1;
+
+  // tag for syntax highlight
+  const glsl = String.raw;
+
+  const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true })!;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+
+  // draw grid
+  {
+    const program = webglProgram(
+      gl,
+      glsl`#version 300 es
+        uniform vec2 resolution;
+        uniform float cellSize;
+        uniform bool vertical;
+
+        void main() {
+          float p1 = float(gl_VertexID / 2) * (cellSize + 1.0) + 0.5;
+          float p2 = gl_VertexID % 2 == 0 ? -1.0 : 1.0;
+          gl_Position = vertical
+            ? vec4(p1 / resolution.x * 2.0 - 1.0, p2, 0.0, 1.0)
+            : vec4(p2, p1 / resolution.y * 2.0 - 1.0, 0.0, 1.0);
+        }
+      `,
+      glsl`#version 300 es
+        precision highp float;
+        uniform vec4 gridColor;
+        out vec4 outColor;
+
+        void main() {
+          outColor = gridColor;
+        }
+      `,
+    );
+    gl.uniform2f(gl.getUniformLocation(program, 'resolution'), canvas.width, canvas.height);
+    gl.uniform1f(gl.getUniformLocation(program, 'cellSize'), CELL_SIZE);
+    gl.uniform4f(gl.getUniformLocation(program, 'gridColor'), GRID_COLOR[0] / 256, GRID_COLOR[1] / 256, GRID_COLOR[2] / 256, 1);
+    gl.uniform1ui(gl.getUniformLocation(program, 'vertical'), 1);
+    gl.drawArrays(gl.LINES, 0, universe.column_count * 2 + 2);
+    gl.uniform1ui(gl.getUniformLocation(program, 'vertical'), 0);
+    gl.drawArrays(gl.LINES, 0, universe.row_count * 2 + 2);
+  }
+
+  const program = webglProgram(
+    gl,
+    glsl`#version 300 es
+      precision highp usampler2D;
+      uniform usampler2D cells;
+      uniform vec2 resolution;
+      uniform int columnCount;
+      uniform int cellSize;
+      uniform vec4 deadColor;
+      uniform vec4 aliveColor;
+      out vec4 cellColor;
+
+      void main() {
+        int cellIndex = gl_VertexID / 6;
+        ivec2 cellPosition = ivec2(cellIndex % columnCount, cellIndex / columnCount);
+        int vertexOffsetIndex = gl_VertexID % 6;
+        ivec2 vertexPosition = cellPosition * (cellSize + 1) + 1 + ivec2(
+          vertexOffsetIndex == 0 ? ivec2(0, 0) :
+          vertexOffsetIndex == 1 || vertexOffsetIndex == 3 ? ivec2(cellSize, 0) :
+          vertexOffsetIndex == 2 || vertexOffsetIndex == 4 ? ivec2(0, cellSize) :
+          ivec2(cellSize, cellSize)
+        );
+        gl_Position = vec4((vec2(vertexPosition) / resolution) * 2.0 - 1.0, 0.0, 1.0);
+        gl_Position.y = -gl_Position.y;
+
+        uint cellState = texelFetch(cells, cellPosition, 0).x;
+        cellColor = cellState == 1u || cellState == 3u ? aliveColor : deadColor;
+      }
+    `,
+    glsl`#version 300 es
+      precision highp float;
+      in vec4 cellColor;
+      out vec4 outColor;
+
+      void main() {
+        outColor = cellColor;
+      }
+    `,
+  );
+
+  gl.uniform2f(gl.getUniformLocation(program, 'resolution'), gl.canvas.width, gl.canvas.height);
+  gl.uniform1i(gl.getUniformLocation(program, 'columnCount'), column_count);
+  gl.uniform1i(gl.getUniformLocation(program, 'cellSize'), CELL_SIZE);
+  gl.uniform4f(gl.getUniformLocation(program, 'deadColor'), DEAD_COLOR[0] / 256, DEAD_COLOR[1] / 256, DEAD_COLOR[2] / 256, 1);
+  gl.uniform4f(gl.getUniformLocation(program, 'aliveColor'), ALIVE_COLOR[0] / 256, ALIVE_COLOR[1] / 256, ALIVE_COLOR[2] / 256, 1);
+
+  gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+  const drawCells = () => {
+    const cells = new Uint8Array(memory.buffer, universe.cells_ptr, row_count * column_count);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, column_count, row_count, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, cells);
+    gl.drawArrays(gl.TRIANGLES, 0, row_count * column_count * 6);
+  };
+  drawCells();
+  return drawCells;
+};
+
 {
   let canvas = document.body.appendChild(document.createElement('canvas'));
   let universe = new Universe(200, 200);
@@ -203,15 +346,6 @@ const wasmRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
     }
   });
 
-  const replaceCanvas = () => {
-    canvas.remove();
-    canvas.width = 0;
-    canvas.height = 0;
-    canvas = document.body.appendChild(document.createElement('canvas'));
-    canvas.style.cursor = 'crosshair';
-    return canvas;
-  };
-
   const controls = controlPanel.appendChild(document.createElement('div'));
   controls.innerHTML = `
     <fieldset>
@@ -219,7 +353,8 @@ const wasmRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
       <label style="cursor:pointer"><input type="radio" name="renderer">Stop</label><br>
       <label style="cursor:pointer"><input type="radio" name="renderer" value="canvas-api">fillRect (JS)</label><br>
       <label style="cursor:pointer"><input type="radio" name="renderer" value="image-data">putImageData (JS)</label><br>
-      <label style="cursor:pointer"><input type="radio" name="renderer" value="wasm" checked>putImageData (WASM)</label><br>
+      <label style="cursor:pointer"><input type="radio" name="renderer" value="wasm">putImageData (WASM)</label><br>
+      <label style="cursor:pointer"><input type="radio" name="renderer" value="webgl2" checked>WebGL2</label><br>
     </fieldset>
     <fieldset>
       <legend style="padding:0 8px">Vastness</legend>
@@ -242,6 +377,14 @@ const wasmRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
     play();
   });
 
+  const replaceCanvas = () => {
+    canvas.remove();
+    canvas.width = 0;
+    canvas.height = 0;
+    canvas = document.body.appendChild(document.createElement('canvas'));
+    canvas.style.cursor = 'crosshair';
+    return canvas;
+  };
   let render: () => void;
   let stop: () => void;
   const play = () => {
@@ -254,6 +397,9 @@ const wasmRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
         break;
       case 'wasm':
         render = wasmRenderer(replaceCanvas(), universe);
+        break;
+      case 'webgl2':
+        render = webgl2Renderer(replaceCanvas(), universe);
         break;
       default:
         stop = () => {};
