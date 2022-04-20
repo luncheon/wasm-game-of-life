@@ -4,7 +4,7 @@ use super::utils;
 use wasm_bindgen::prelude::*;
 
 use cell_state::CellState;
-pub mod cell_state {
+mod cell_state {
     const DEAD: u8 = 0x00;
     const ALIVE: u8 = 0x01;
     const MODIFIED: u8 = 0x02;
@@ -51,23 +51,8 @@ pub struct Universe {
 }
 
 impl Universe {
-    pub fn generate<F: Fn(usize) -> CellState>(width: usize, height: usize, generator: F) -> Self {
-        Universe {
-            cells: Table::generate(height, width, generator),
-            inactive_cells: Table::with_fill(height, width, cell_state::DEATH),
-        }
-    }
-
     pub fn cell(&self, row: usize, column: usize) -> CellState {
         self.cells.get(row, column)
-    }
-
-    pub fn set_cell(&mut self, row: usize, column: usize, state: CellState) {
-        self.cells.set(row, column, state)
-    }
-
-    pub fn cells_slice(&self) -> &[CellState] {
-        self.cells.as_slice()
     }
 }
 
@@ -182,6 +167,24 @@ impl Universe {
             }
         }
         std::mem::swap(&mut self.cells, &mut self.inactive_cells);
+    }
+}
+
+#[cfg(test)]
+impl Universe {
+    fn generate<F: Fn(usize) -> CellState>(width: usize, height: usize, generator: F) -> Self {
+        Universe {
+            cells: Table::generate(height, width, generator),
+            inactive_cells: Table::with_fill(height, width, cell_state::DEATH),
+        }
+    }
+
+    fn set_cell(&mut self, row: usize, column: usize, state: CellState) {
+        self.cells.set(row, column, state)
+    }
+
+    fn cells_slice(&self) -> &[CellState] {
+        self.cells.as_slice()
     }
 }
 

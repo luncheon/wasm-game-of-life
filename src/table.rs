@@ -43,11 +43,12 @@ impl<T: Copy> Table<T> {
         self.values[index] = value;
     }
 
-    pub fn as_slice(&self) -> &[T] {
-        self.values.as_slice()
-    }
-
     pub fn as_ptr(&self) -> *const T {
         self.values.as_ptr()
+    }
+
+    #[cfg(test)]
+    pub fn as_slice(&self) -> &[T] {
+        self.values.as_slice()
     }
 }
