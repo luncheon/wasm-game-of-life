@@ -16,15 +16,18 @@ const esbuildOptions = {
   plugins: [wasmLoader({ mode: 'deferred' })],
 };
 
-execSync('cargo install wasm-bindgen-cli -q --root .crates', { stdio: 'inherit' });
+execSync('cargo install wasm-bindgen-cli --root .crates', { stdio: 'inherit' });
+execSync('cargo install wasm-snip --root .crates', { stdio: 'inherit' });
 const buildWasm = () => {
   try {
     // execSync('wasm-pack --log-level warn build', { stdio: 'inherit' });
     const crate = 'wasm_game_of_life';
     const outDir = 'pkg';
+    const wasmPath = `${outDir}/${crate}_bg.wasm`;
     execSync('cargo build --target wasm32-unknown-unknown --release', { stdio: 'inherit' });
     execSync(`.crates/bin/wasm-bindgen target/wasm32-unknown-unknown/release/${crate}.wasm --out-dir ${outDir}`, { stdio: 'inherit' });
-    execSync(`npx wasm-opt -O ${outDir}/${crate}_bg.wasm -o ${outDir}/${crate}_bg.wasm`, { stdio: 'inherit' });
+    execSync(`.crates/bin/wasm-snip --snip-rust-fmt-code --snip-rust-panicking-code ${wasmPath} -o ${wasmPath}`, { stdio: 'inherit' });
+    execSync(`npx wasm-opt -O ${wasmPath} -o ${wasmPath}`, { stdio: 'inherit' });
   } catch (error) {
     console.error(error);
   }
