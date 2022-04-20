@@ -13,10 +13,11 @@
     "clean": "node -e \"['pkg','target','docs/index.js','docs/wasm_game_of_life_bg.wasm'].forEach(dir=>require('fs').rmSync(dir,{recursive:true,force:true}))\"",
     "build": "node build.mjs",
     "start": "node build.mjs --serve",
-    "test": "wasm-pack test --node"
+    "test": "cargo test"
   },
   "devDependencies": {
-    "esbuild": "^0.14.28",
-    "esbuild-plugin-wasm": "^1.0.0"
+    "esbuild": "^0.14.36",
+    "esbuild-plugin-wasm": "^1.0.0",
+    "wasm-opt": "^1.3.0"
   }
 }
