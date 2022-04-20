@@ -1,3 +1,4 @@
+/.crates/
 /node_modules/
 /target/
 /pkg/
