@@ -145,23 +145,13 @@ impl Universe {
     pub fn tick(&mut self) {
         for row in 0..self.cells.row_count() {
             for column in 0..self.cells.column_count() {
-                let cell = self.cells.get(row, column).is_alive();
-                let live_neighbors = self.live_neighbor_count(row, column);
-                let next_cell = match (cell, live_neighbors) {
-                    // Rule 1: Any live cell with fewer than two live neighbors
-                    // dies, as if caused by underpopulation.
-                    (true, x) if x < 2 => cell_state::DEATH,
-                    // Rule 2: Any live cell with two or three live neighbors
-                    // lives on to the next generation.
+                let is_alive = self.cells.get(row, column).is_alive();
+                let live_neighbor_count = self.live_neighbor_count(row, column);
+                let next_cell = match (is_alive, live_neighbor_count) {
                     (true, 2) | (true, 3) => cell_state::SURVIVAL,
-                    // Rule 3: Any live cell with more than three live
-                    // neighbors dies, as if by overpopulation.
                     (true, _) => cell_state::DEATH,
-                    // Rule 4: Any dead cell with exactly three live neighbors
-                    // becomes a live cell, as if by reproduction.
                     (false, 3) => cell_state::BIRTH,
-                    // All other cells remain in the same state.
-                    _ => cell_state::STAY_DEAD,
+                    (false, _) => cell_state::STAY_DEAD,
                 };
                 self.inactive_cells.set(row, column, next_cell);
             }
