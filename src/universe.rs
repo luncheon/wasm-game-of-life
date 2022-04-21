@@ -72,33 +72,6 @@ impl Universe {
         self.cells = Table::generate(self.cells.row_count(), self.cells.column_count(), |_| random_state());
     }
 
-    pub fn single_space_ship(&mut self, row: usize, column: usize) {
-        for (row_offset, column_offset, cell) in [
-            (0, 0, cell_state::DEATH),
-            (0, 1, cell_state::BIRTH),
-            (0, 2, cell_state::DEATH),
-            (0, 3, cell_state::DEATH),
-            (0, 4, cell_state::BIRTH),
-            (1, 0, cell_state::BIRTH),
-            (1, 1, cell_state::DEATH),
-            (1, 2, cell_state::DEATH),
-            (1, 3, cell_state::DEATH),
-            (1, 4, cell_state::DEATH),
-            (2, 0, cell_state::BIRTH),
-            (2, 1, cell_state::DEATH),
-            (2, 2, cell_state::DEATH),
-            (2, 3, cell_state::DEATH),
-            (2, 4, cell_state::BIRTH),
-            (3, 0, cell_state::BIRTH),
-            (3, 1, cell_state::BIRTH),
-            (3, 2, cell_state::BIRTH),
-            (3, 3, cell_state::BIRTH),
-            (3, 4, cell_state::DEATH),
-        ] {
-            self.cells.set(row + row_offset, column + column_offset, cell);
-        }
-    }
-
     #[wasm_bindgen(getter)]
     pub fn as_ptr(&self) -> *const Universe {
         self
@@ -169,52 +142,34 @@ impl Universe {
         }
     }
 
-    fn set_cell(&mut self, row: usize, column: usize, state: CellState) {
-        self.cells.set(row, column, state)
+    fn set_cells(&mut self, cells: &[(usize, usize, CellState)]) {
+        for (row, column, state) in cells {
+            self.cells.set(*row, *column, *state);
+        }
     }
 
-    fn cells_slice(&self) -> &[CellState] {
-        self.cells.as_slice()
+    fn cells(&self) -> &Table<CellState> {
+        &self.cells
     }
-}
-
-#[cfg(test)]
-fn assert_tick_before_after(
-    rows: usize,
-    columns: usize,
-    cells_before_tick: &[(usize, usize, CellState)],
-    cells_after_tick: &[(usize, usize, CellState)],
-) {
-    use cell_state::*;
-    let mut before_tick = Universe::new(rows, columns);
-    for (row, column, state) in cells_before_tick {
-        before_tick.set_cell(*row, *column, *state);
-    }
-
-    let mut after_tick = Universe::generate(rows, columns, |_| STAY_DEAD);
-    for (row, column, state) in cells_after_tick {
-        after_tick.set_cell(*row, *column, *state);
-    }
-
-    before_tick.tick();
-    assert_eq!(&before_tick.cells_slice(), &after_tick.cells_slice());
 }
 
 #[test]
 fn test_tick() {
     use cell_state::*;
-    assert_tick_before_after(
-        6,
-        6,
-        &[(1, 2, BIRTH), (2, 3, BIRTH), (3, 1, BIRTH), (3, 2, BIRTH), (3, 3, BIRTH)],
-        &[
-            (1, 2, DEATH),
-            (2, 1, BIRTH),
-            (2, 3, SURVIVAL),
-            (3, 1, DEATH),
-            (3, 2, SURVIVAL),
-            (3, 3, SURVIVAL),
-            (4, 2, BIRTH),
-        ],
-    );
+
+    let mut before_tick = Universe::new(6, 6);
+    before_tick.set_cells(&[(1, 2, BIRTH), (2, 3, BIRTH), (3, 1, BIRTH), (3, 2, BIRTH), (3, 3, BIRTH)]);
+    before_tick.tick();
+
+    let mut after_tick = Universe::generate(6, 6, |_| STAY_DEAD);
+    after_tick.set_cells(&[
+        (1, 2, DEATH),
+        (2, 1, BIRTH),
+        (2, 3, SURVIVAL),
+        (3, 1, DEATH),
+        (3, 2, SURVIVAL),
+        (3, 3, SURVIVAL),
+        (4, 2, BIRTH),
+    ]);
+    assert_eq!(before_tick.cells(), after_tick.cells());
 }

@@ -1,4 +1,5 @@
-pub struct Table<T: Copy> {
+#[derive(Debug, PartialEq, Eq)]
+pub struct Table<T: Clone> {
     row_count: usize,
     column_count: usize,
     values: Vec<T>,
@@ -6,11 +7,7 @@ pub struct Table<T: Copy> {
 
 impl<T: Copy> Table<T> {
     pub fn with_fill(row_count: usize, column_count: usize, value: T) -> Self {
-        Self {
-            row_count,
-            column_count,
-            values: vec![value; row_count * column_count],
-        }
+        Self::generate(row_count, column_count, |_| value)
     }
 
     pub fn generate<F: Fn(usize) -> T>(row_count: usize, column_count: usize, generator: F) -> Self {
@@ -45,10 +42,5 @@ impl<T: Copy> Table<T> {
 
     pub fn as_ptr(&self) -> *const T {
         self.values.as_ptr()
-    }
-
-    #[cfg(test)]
-    pub fn as_slice(&self) -> &[T] {
-        self.values.as_slice()
     }
 }
