@@ -89,7 +89,7 @@ const canvasApiRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   canvas.width = BORDERED_CELL_SIZE * universe.columnCount + 1;
   canvas.height = BORDERED_CELL_SIZE * universe.rowCount + 1;
 
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', { desynchronized: true })!;
   drawGrid(ctx);
 
   const deadColor = rgbFormat(DEAD_COLOR);
@@ -107,7 +107,7 @@ const putImageDataRenderer = (canvas: HTMLCanvasElement, universe: Universe) => 
   canvas.width = BORDERED_CELL_SIZE * universe.columnCount + 1;
   canvas.height = BORDERED_CELL_SIZE * universe.rowCount + 1;
 
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', { desynchronized: true })!;
   drawGrid(ctx);
 
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -147,7 +147,7 @@ const wasmRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
 
   canvas.width = drawer.width;
   canvas.height = drawer.height;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', { desynchronized: true })!;
 
   drawer.drawCells(false);
   ctx.putImageData(imageData, 0, 0);
@@ -202,7 +202,7 @@ const webgl2Renderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   // tag for syntax highlight
   const glsl = String.raw;
 
-  const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true })!;
+  const gl = canvas.getContext('webgl2', { desynchronized: true, preserveDrawingBuffer: true })!;
   gl.viewport(0, 0, canvas.width, canvas.height);
 
   // draw grid
