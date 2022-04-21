@@ -48,7 +48,7 @@ impl UniverseCanvasDrawer {
         self.height
     }
 
-    #[wasm_bindgen(getter)]
+    #[wasm_bindgen(getter, js_name = "dataPtr")]
     pub fn data_ptr(&self) -> *const u32 {
         self.canvas.data().as_ptr()
     }
@@ -63,6 +63,7 @@ impl UniverseCanvasDrawer {
         }
     }
 
+    #[wasm_bindgen(js_name = "drawCells")]
     pub fn draw_cells(&mut self, modified_only: bool) {
         let universe = unsafe { &*self.universe_ptr };
         let mut x = 1;

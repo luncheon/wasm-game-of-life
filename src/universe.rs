@@ -72,26 +72,27 @@ impl Universe {
         self.cells = Table::generate(self.cells.row_count(), self.cells.column_count(), |_| random_state());
     }
 
-    #[wasm_bindgen(getter)]
+    #[wasm_bindgen(getter, js_name = "asPtr")]
     pub fn as_ptr(&self) -> *const Universe {
         self
     }
 
-    #[wasm_bindgen(getter)]
+    #[wasm_bindgen(getter, js_name = "cellsPtr")]
     pub fn cells_ptr(&self) -> *const CellState {
         self.cells.as_ptr()
     }
 
-    #[wasm_bindgen(getter)]
+    #[wasm_bindgen(getter, js_name = "rowCount")]
     pub fn row_count(&self) -> usize {
         self.cells.row_count()
     }
 
-    #[wasm_bindgen(getter)]
+    #[wasm_bindgen(getter, js_name = "columnCount")]
     pub fn column_count(&self) -> usize {
         self.cells.column_count()
     }
 
+    #[wasm_bindgen(js_name = "setCellAlive")]
     pub fn set_cell_alive(&mut self, row: usize, column: usize, is_alive: bool) {
         self.cells
             .set(row, column, if is_alive { cell_state::BIRTH } else { cell_state::DEATH })

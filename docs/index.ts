@@ -52,11 +52,11 @@ const renderLoop = (callback: () => void) => {
 };
 
 const forEachCells = (universe: Universe, callback: (row: number, column: number, isAlive: unknown) => void, modifiedOnly?: boolean) => {
-  const { row_count, column_count } = universe;
-  const cells = new Uint8Array(memory.buffer, universe.cells_ptr, row_count * column_count);
+  const { rowCount, columnCount } = universe;
+  const cells = new Uint8Array(memory.buffer, universe.cellsPtr, rowCount * columnCount);
   let index = 0;
-  for (let row = 0; row < row_count; row++) {
-    for (let column = 0; column < column_count; column++) {
+  for (let row = 0; row < rowCount; row++) {
+    for (let column = 0; column < columnCount; column++) {
       const cell = cells[index]!;
       if (!modifiedOnly || cell & 2) {
         callback(row, column, cell & 1);
@@ -86,8 +86,8 @@ const drawGrid = (ctx: CanvasRenderingContext2D) => {
 };
 
 const canvasApiRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
-  canvas.width = BORDERED_CELL_SIZE * universe.column_count + 1;
-  canvas.height = BORDERED_CELL_SIZE * universe.row_count + 1;
+  canvas.width = BORDERED_CELL_SIZE * universe.columnCount + 1;
+  canvas.height = BORDERED_CELL_SIZE * universe.rowCount + 1;
 
   const ctx = canvas.getContext('2d')!;
   drawGrid(ctx);
@@ -104,8 +104,8 @@ const canvasApiRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
 };
 
 const putImageDataRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
-  canvas.width = BORDERED_CELL_SIZE * universe.column_count + 1;
-  canvas.height = BORDERED_CELL_SIZE * universe.row_count + 1;
+  canvas.width = BORDERED_CELL_SIZE * universe.columnCount + 1;
+  canvas.height = BORDERED_CELL_SIZE * universe.rowCount + 1;
 
   const ctx = canvas.getContext('2d')!;
   drawGrid(ctx);
@@ -138,9 +138,9 @@ const putImageDataRenderer = (canvas: HTMLCanvasElement, universe: Universe) => 
 };
 
 const wasmRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
-  const drawer = new UniverseCanvasDrawer(universe.as_ptr, CELL_SIZE, rgb32bit(GRID_COLOR), rgb32bit(DEAD_COLOR), rgb32bit(ALIVE_COLOR));
+  const drawer = new UniverseCanvasDrawer(universe.asPtr, CELL_SIZE, rgb32bit(GRID_COLOR), rgb32bit(DEAD_COLOR), rgb32bit(ALIVE_COLOR));
   const imageData = new ImageData(
-    new Uint8ClampedArray(memory.buffer, drawer.data_ptr, drawer.width * drawer.height * 4),
+    new Uint8ClampedArray(memory.buffer, drawer.dataPtr, drawer.width * drawer.height * 4),
     drawer.width,
     drawer.height,
   );
@@ -149,10 +149,10 @@ const wasmRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   canvas.height = drawer.height;
   const ctx = canvas.getContext('2d')!;
 
-  drawer.draw_cells(false);
+  drawer.drawCells(false);
   ctx.putImageData(imageData, 0, 0);
   return () => {
-    drawer.draw_cells(false);
+    drawer.drawCells(false);
     ctx.putImageData(imageData, 0, 0);
   };
 };
@@ -195,9 +195,9 @@ const webglProgram = (gl: WebGL2RenderingContext, vertexShaderSource: string, fr
   });
 
 const webgl2Renderer = (canvas: HTMLCanvasElement, universe: Universe) => {
-  const { column_count, row_count } = universe;
-  canvas.width = BORDERED_CELL_SIZE * column_count + 1;
-  canvas.height = BORDERED_CELL_SIZE * row_count + 1;
+  const { columnCount, rowCount } = universe;
+  canvas.width = BORDERED_CELL_SIZE * columnCount + 1;
+  canvas.height = BORDERED_CELL_SIZE * rowCount + 1;
 
   // tag for syntax highlight
   const glsl = String.raw;
@@ -236,9 +236,9 @@ const webgl2Renderer = (canvas: HTMLCanvasElement, universe: Universe) => {
     gl.uniform1f(gl.getUniformLocation(program, 'cellSize'), CELL_SIZE);
     gl.uniform4f(gl.getUniformLocation(program, 'gridColor'), GRID_COLOR[0] / 256, GRID_COLOR[1] / 256, GRID_COLOR[2] / 256, 1);
     gl.uniform1ui(gl.getUniformLocation(program, 'vertical'), 1);
-    gl.drawArrays(gl.LINES, 0, universe.column_count * 2 + 2);
+    gl.drawArrays(gl.LINES, 0, universe.columnCount * 2 + 2);
     gl.uniform1ui(gl.getUniformLocation(program, 'vertical'), 0);
-    gl.drawArrays(gl.LINES, 0, universe.row_count * 2 + 2);
+    gl.drawArrays(gl.LINES, 0, universe.rowCount * 2 + 2);
   }
 
   const program = webglProgram(
@@ -282,7 +282,7 @@ const webgl2Renderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   );
 
   gl.uniform2f(gl.getUniformLocation(program, 'resolution'), gl.canvas.width, gl.canvas.height);
-  gl.uniform1i(gl.getUniformLocation(program, 'columnCount'), column_count);
+  gl.uniform1i(gl.getUniformLocation(program, 'columnCount'), columnCount);
   gl.uniform1i(gl.getUniformLocation(program, 'cellSize'), CELL_SIZE);
   gl.uniform4f(gl.getUniformLocation(program, 'deadColor'), DEAD_COLOR[0] / 256, DEAD_COLOR[1] / 256, DEAD_COLOR[2] / 256, 1);
   gl.uniform4f(gl.getUniformLocation(program, 'aliveColor'), ALIVE_COLOR[0] / 256, ALIVE_COLOR[1] / 256, ALIVE_COLOR[2] / 256, 1);
@@ -292,9 +292,9 @@ const webgl2Renderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
   const drawCells = () => {
-    const cells = new Uint8Array(memory.buffer, universe.cells_ptr, row_count * column_count);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, column_count, row_count, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, cells);
-    gl.drawArrays(gl.TRIANGLES, 0, row_count * column_count * 6);
+    const cells = new Uint8Array(memory.buffer, universe.cellsPtr, rowCount * columnCount);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, columnCount, rowCount, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, cells);
+    gl.drawArrays(gl.TRIANGLES, 0, rowCount * columnCount * 6);
   };
   drawCells();
   return drawCells;
@@ -305,8 +305,8 @@ const webgl2Renderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   let universe = new Universe(200, 200);
   universe.random();
 
-  const clampRow = (value: number) => Math.min(Math.floor(value), universe.row_count - 1);
-  const clampColumn = (value: number) => Math.min(Math.floor(value), universe.column_count - 1);
+  const clampRow = (value: number) => Math.min(Math.floor(value), universe.rowCount - 1);
+  const clampColumn = (value: number) => Math.min(Math.floor(value), universe.columnCount - 1);
   const universeRowColumnFromClientXY = (clientX: number, clientY: number) => {
     const clientRect = canvas.getBoundingClientRect();
     const canvasX = ((clientX - clientRect.x - 1) * canvas.width) / clientRect.width;
@@ -316,7 +316,7 @@ const webgl2Renderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   addEventListener('pointerdown', (event) => {
     if (event.target === canvas) {
       let [row, column] = universeRowColumnFromClientXY(event.clientX, event.clientY);
-      universe.set_cell_alive(row, column, true);
+      universe.setCellAlive(row, column, true);
       render();
 
       const onPointerMove = (event: PointerEvent) => {
@@ -326,9 +326,9 @@ const webgl2Renderer = (canvas: HTMLCanvasElement, universe: Universe) => {
         const rowUnit = Math.sin(angle);
         const columnUnit = Math.cos(angle);
         for (let i = 0; i < distance; i++) {
-          universe.set_cell_alive(clampRow(row + i * rowUnit), clampColumn(column + i * columnUnit), true);
+          universe.setCellAlive(clampRow(row + i * rowUnit), clampColumn(column + i * columnUnit), true);
         }
-        universe.set_cell_alive(row, column, true);
+        universe.setCellAlive(row, column, true);
         row = newRow;
         column = newColumn;
         render();
