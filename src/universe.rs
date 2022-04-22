@@ -98,36 +98,31 @@ impl Universe {
             .set(row, column, if is_alive { cell_state::BIRTH } else { cell_state::DEATH })
     }
 
-    fn live_neighbor_count(&self, row: usize, column: usize) -> usize {
-        let rows = self.cells.row_count();
-        let columns = self.cells.column_count();
-        let row1 = if row == 0 { rows - 1 } else { row - 1 };
-        let row2 = if row == rows - 1 { 0 } else { row + 1 };
-        let column1 = if column == 0 { columns - 1 } else { column - 1 };
-        let column2 = if column == columns - 1 { 0 } else { column + 1 };
-
-        self.cells.get(row1, column1).is_alive() as usize
-            + self.cells.get(row1, column).is_alive() as usize
-            + self.cells.get(row1, column2).is_alive() as usize
-            + self.cells.get(row, column1).is_alive() as usize
-            + self.cells.get(row, column2).is_alive() as usize
-            + self.cells.get(row2, column1).is_alive() as usize
-            + self.cells.get(row2, column).is_alive() as usize
-            + self.cells.get(row2, column2).is_alive() as usize
-    }
-
     pub fn tick(&mut self) {
+        let next_cell_state = |is_alive: usize, live_neighbors: usize| match (is_alive, live_neighbors) {
+            (0, 3) => cell_state::BIRTH,
+            (0, _) => cell_state::STAY_DEAD,
+            (1, 2) | (1, 3) => cell_state::SURVIVAL,
+            _ => cell_state::DEATH,
+        };
+        let is_alive = |row: usize, column: usize| self.cells.get(row, column).is_alive() as usize;
+        let column_last = self.cells.column_count() - 1;
         for row in 0..self.cells.row_count() {
+            let row_above = if row == 0 { self.cells.row_count() - 1 } else { row - 1 };
+            let row_below = if row == self.cells.row_count() - 1 { 0 } else { row + 1 };
+
+            let mut living_left_triplet = is_alive(row_above, column_last) + is_alive(row, column_last) + is_alive(row_below, column_last);
+            let mut living_above_and_below = is_alive(row_above, 0) + is_alive(row_below, 0);
+            let mut living_self = is_alive(row, 0);
             for column in 0..self.cells.column_count() {
-                let is_alive = self.cells.get(row, column).is_alive();
-                let live_neighbor_count = self.live_neighbor_count(row, column);
-                let next_cell = match (is_alive, live_neighbor_count) {
-                    (true, 2) | (true, 3) => cell_state::SURVIVAL,
-                    (true, _) => cell_state::DEATH,
-                    (false, 3) => cell_state::BIRTH,
-                    (false, _) => cell_state::STAY_DEAD,
-                };
-                self.inactive_cells.set(row, column, next_cell);
+                let column_right = if column == column_last { 0 } else { column + 1 };
+                let living_right = is_alive(row, column_right);
+                let living_right_above_and_below = is_alive(row_above, column_right) + is_alive(row_below, column_right);
+                let living_neighbors = living_left_triplet + living_above_and_below + living_right_above_and_below + living_right;
+                self.inactive_cells.set(row, column, next_cell_state(living_self, living_neighbors));
+                living_left_triplet = living_above_and_below + living_self;
+                living_above_and_below = living_right_above_and_below;
+                living_self = living_right;
             }
         }
         std::mem::swap(&mut self.cells, &mut self.inactive_cells);
