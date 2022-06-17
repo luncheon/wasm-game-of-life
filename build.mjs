@@ -16,8 +16,8 @@ const esbuildOptions = {
   plugins: [wasmLoader({ mode: 'deferred' })],
 };
 
-execSync('cargo install wasm-bindgen-cli --root .crates', { stdio: 'inherit' });
-execSync('cargo install wasm-snip --root .crates', { stdio: 'inherit' });
+execSync('cargo install --root .crates wasm-bindgen-cli --version 0.2.80', { stdio: 'inherit' });
+execSync('cargo install --root .crates wasm-snip', { stdio: 'inherit' });
 const buildWasm = () => {
   try {
     // execSync('wasm-pack --log-level warn build', { stdio: 'inherit' });

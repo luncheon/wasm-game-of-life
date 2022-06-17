@@ -1,4 +1,4 @@
-import { Universe, UniverseCanvasDrawer } from '../pkg/wasm_game_of_life';
+import { Universe } from '../pkg/wasm_game_of_life';
 import { memory } from '../pkg/wasm_game_of_life_bg.wasm';
 
 const controlPanel = document.body.appendChild(document.createElement('aside'));
@@ -85,7 +85,7 @@ const drawGrid = (ctx: CanvasRenderingContext2D) => {
   ctx.putImageData(imageData, 0, 0);
 };
 
-const canvasApiRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
+const fillRectRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   canvas.width = BORDERED_CELL_SIZE * universe.columnCount + 1;
   canvas.height = BORDERED_CELL_SIZE * universe.rowCount + 1;
 
@@ -133,26 +133,6 @@ const putImageDataRenderer = (canvas: HTMLCanvasElement, universe: Universe) => 
   ctx.putImageData(imageData, 0, 0);
   return () => {
     forEachCells(universe, drawCell, true);
-    ctx.putImageData(imageData, 0, 0);
-  };
-};
-
-const wasmRenderer = (canvas: HTMLCanvasElement, universe: Universe) => {
-  const drawer = new UniverseCanvasDrawer(universe.asPtr, CELL_SIZE, rgb32bit(GRID_COLOR), rgb32bit(DEAD_COLOR), rgb32bit(ALIVE_COLOR));
-  const imageData = new ImageData(
-    new Uint8ClampedArray(memory.buffer, drawer.dataPtr, drawer.width * drawer.height * 4),
-    drawer.width,
-    drawer.height,
-  );
-
-  canvas.width = drawer.width;
-  canvas.height = drawer.height;
-  const ctx = canvas.getContext('2d', { desynchronized: true })!;
-
-  drawer.drawCells(false);
-  ctx.putImageData(imageData, 0, 0);
-  return () => {
-    drawer.drawCells(false);
     ctx.putImageData(imageData, 0, 0);
   };
 };
@@ -351,9 +331,8 @@ const webgl2Renderer = (canvas: HTMLCanvasElement, universe: Universe) => {
     <fieldset>
       <legend style="padding:0 8px">Renderer</legend>
       <label style="cursor:pointer"><input type="radio" name="renderer">Stop</label><br>
-      <label style="cursor:pointer"><input type="radio" name="renderer" value="canvas-api">fillRect (JS)</label><br>
-      <label style="cursor:pointer"><input type="radio" name="renderer" value="image-data">putImageData (JS)</label><br>
-      <label style="cursor:pointer"><input type="radio" name="renderer" value="wasm">putImageData (WASM)</label><br>
+      <label style="cursor:pointer"><input type="radio" name="renderer" value="fillRect">fillRect</label><br>
+      <label style="cursor:pointer"><input type="radio" name="renderer" value="putImageData">putImageData</label><br>
       <label style="cursor:pointer"><input type="radio" name="renderer" value="webgl2" checked>WebGL2</label><br>
     </fieldset>
     <fieldset>
@@ -389,14 +368,11 @@ const webgl2Renderer = (canvas: HTMLCanvasElement, universe: Universe) => {
   let stop: () => void;
   const play = () => {
     switch ((controls.querySelector('[name=renderer]:checked') as HTMLInputElement).value) {
-      case 'canvas-api':
-        render = canvasApiRenderer(replaceCanvas(), universe);
+      case 'fillRect':
+        render = fillRectRenderer(replaceCanvas(), universe);
         break;
-      case 'image-data':
+      case 'putImageData':
         render = putImageDataRenderer(replaceCanvas(), universe);
-        break;
-      case 'wasm':
-        render = wasmRenderer(replaceCanvas(), universe);
         break;
       case 'webgl2':
         render = webgl2Renderer(replaceCanvas(), universe);

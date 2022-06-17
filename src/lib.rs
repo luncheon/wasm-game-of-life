@@ -1,8 +1,6 @@
-mod canvas;
 mod js;
 mod table;
 pub mod universe;
-pub mod universe_canvas_drawer;
 mod utils;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
